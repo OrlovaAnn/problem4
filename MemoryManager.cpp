@@ -7,6 +7,9 @@
 using std::vector;
 using std::list;
 
+// отказ на выполнение запроса
+const int REJECT = -1;
+
 
 // структура @MemoryBlock, описывающая блок памяти
 // @realIndex - порядковый индекс блока, как он хранится в памяти
@@ -22,13 +25,15 @@ struct MemoryBlock
     int indexInHeap;
     int start;
 
-    MemoryBlock (int indInM = 0, int len = 0, bool is_free = false,
-            int indInH = 0, int rInd = 0):
-        start(indInM),
-        length(len),
+    explicit MemoryBlock (int startInMemory = 0, int length = 0, bool is_free = false,
+            int indInHeap = 0, int realIndexInMemory = 0) :
+        start(startInMemory),
+        length(length),
         isFree(is_free),
-        indexInHeap(indInH),
-        realIndex(rInd);
+        indexInHeap(indInHeap),
+        realIndex(realIndexInMemory)
+    {
+    }
 
     MemoryBlock& operator = (const MemoryBlock& right);
 
@@ -39,17 +44,18 @@ struct MemoryBlock
     bool operator != (const MemoryBlock &right) const;
 };
 
-// вспомогательная функция @swapBlocksInHeap меняет местами два элемента в куче
-// @block - вектор элементов кучи
-// @first - индекс первого элемента
-// @second - индекс второго элемента
-void swapBlocksInHeap(vector<list<MemoryBlock>::iterator> &block, int first, int second);
 
 // класс @MaxHeap, описывающий структуру MaxHeap и её методы
-// @blocks - элементы кучи, являющиеся указателями на блоки памяти в списке
+// @blocks - элементы кучи
+template <class T>
 class MaxHeap
 {
-    vector<list<MemoryBlock>::iterator> blocks;
+    vector<T> blocks;
+
+    // метод @Heapify восстанавливает свойство кучи
+    // index - индекс элемента, который нужно упорядочить для
+    // восстановления свойств кучи
+    void Heapify (int index);
 
 public:
     // метод @isEmpty возвращает true, если в куче нет элементов
@@ -57,26 +63,22 @@ public:
 
     // метод @getBlocksSize возвращает количество элементов в куче
     int getBlocksSize() const;
-
+	
     // метод @insertNewBlock вставляет новый элемент в кучу
     // newBlock - указатель на блок в списке блоков памяти 
-    void insertNewBlock(list<MemoryBlock>::iterator newBlock);
+    void insertNewBlock(T newBlock);
 
-    // метод @Heapify восстанавливает свойство кучи
-    // index - индекс элемента, который нужно упорядочить для
-    // восстановления свойств кучи
-    void Heapify (int index);
 
     // метод @removeBlock удаляет элемент из кучи, сохраняя свойства кучи
     // element - указатель на удаляемый элемент
-    void removeBlock(list<MemoryBlock>::iterator &element);
+    void removeBlock(T &element);
 
-    // метод @pop удаляет максимальный (верхний) элемент из кучи, сохраняя свойства кучи
-    list<MemoryBlock>::iterator pop();
+    // метод @extractMin удаляет максимальный (верхний) элемент из кучи, сохраняя свойства кучи
+    T extractMin();
 
     // метод @getMaxElement возвращает указатель на
     // максимальный (верхний) элемент из кучи
-    list<MemoryBlock>::iterator getMaxElement();
+    T getMaxElement() const;
 };
 
 
@@ -97,22 +99,15 @@ struct Query
 // @memoryHeap - куча, элементами которой являются указатели на блоки памяти в списке @blocksInList
 // @blocksInList - двусвязный список с блоками памяти, расположенными в том порядке,
 // как они располагаются в памяти
-// @queries - вектор запросов 
+
 class MemoryManager
 {
-    MaxHeap memoryHeap;
+    MaxHeap<list<MemoryBlock>::iterator> memoryHeap;
     list<MemoryBlock> blocksInList;
-    vector<Query> queries;
 
 public:
     // констурктор @MemoryManager создаёт блок памяти, размером @sizeOfMemory
     explicit MemoryManager(int sizeOfMemory);
-
-    // метод @fillQueryVector заполняет вектор запросов из входного потока
-    void fillQueryVector();
-
-    // метод @performQuery выполняет все запросы из @queries
-    void performQuery();
 
     // метод @findAndAllocateMemory выполняет запрос @query на выделение 
     // памяти 
@@ -125,9 +120,16 @@ public:
     // @query - запрос на освобождение памяти
     void deallocateMemory(Query& query);
     
-    // метод @printReport выводит результат выполнения запросов
-    void printReport();
 };
+
+// метод @fillQueryVector заполняет вектор запросов из входного потока
+void fillQueryVector(vector<Query>& queries);
+
+// метод @performQuery выполняет все запросы из @queries
+void performQuery(MemoryManager& memoryManager, vector<Query>& queries);
+
+// метод @printReport выводит результат выполнения запросов
+void printReport(vector<Query>& queries);
 
 int main()
 {
@@ -135,12 +137,13 @@ int main()
     std::cin >> memorySize;
 
     MemoryManager memoryManager(memorySize);
+    vector<Query> queries;
     // заполнение списка запросов из входного потока
-    memoryManager.fillQueryVector();
+    fillQueryVector(queries);
     // выполнение списка запросов в порядке поступления из входного потока
-    memoryManager.performQuery();
+    performQuery(memoryManager, queries);
     // вывод результатов
-    memoryManager.printReport();
+    printReport(queries);
 
     return 0;
 }
